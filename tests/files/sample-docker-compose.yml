@@ -1,0 +1,101 @@
+web:
+  image: bamx/base
+  ports:
+     - "80:80"
+     - "5000:5000"
+     - "2222:22"
+  volumes_from:
+    - node
+  volumes:
+    - /opt/bamx:/opt/bamx
+    - /opt/bamx/docker/webapp/pycharm:/etc/my_init.d
+  links:
+    - redis
+    - mysql
+    - postgres
+    - elasticsearch
+    - vftpd
+    - sftp
+  command: --enable-insecure-key
+  # This instance of the container runs sshd on port 2222 with the phusion
+  # insecure key enabled.  This does NOT run in production.  To ssh to this
+  # container, install the insecure key and use
+  # ssh -p 2222 -i insecure_key root@bam-x.site
+  # The insecure key is installed with
+  # curl -o insecure_key -fSL https://github.com/phusion/baseimage-docker/raw/master/image/insecure_key
+  # chmod 600 insecure_key
+  environment:
+    - BAMX_ENV=local
+redis:
+  image: redis
+mysql:
+  image: bamx/mysql
+postgres:
+  image: bamx/postgres
+node:
+  image: bamx/node
+  volumes:
+    - frontend:/opt/bamx/frontend
+fluentd:
+  image: bamx/fluentd
+  volumes_from:
+    - web
+elasticsearch:
+  image: bamx/elasticsearch
+  links:
+    - mysql
+  ports:
+    - "9200:9200"
+celeryd:
+  image: bamx/base
+  links:
+    - redis
+    - mysql
+    - postgres
+  volumes:
+    - /opt/bamx:/opt/bamx
+  environment:
+    - PYTHONPATH=/opt/bamx/srv
+    - C_FORCE_ROOT=TRUE
+    - BAMX_ENV=local
+  command: --skip-runit -- celery worker -A tasks.celery --workdir=/opt/bamx/srv --pidfile=/tmp/celeryd.pid
+celerybeat:
+  image: bamx/base
+  links:
+    - redis
+  volumes:
+    - /opt/bamx:/opt/bamx
+  environment:
+    - PYTHONPATH=/opt/bamx/srv
+    - C_FORCE_ROOT=TRUE
+    - BAMX_ENV=local
+  command: --skip-runit -- celery beat -A tasks.celery --workdir=/opt/bamx/srv --pidfile=/tmp/celerybeat.pid -s /tmp/beat-schedule
+vftpd:
+  image: bamx/vftpd
+  links:
+    - redis
+  ports:
+    - "20:20"
+    - "21:21"
+    - "12000:12000"
+  volumes:
+    - /opt/bamx:/opt/bamx
+  environment:
+    - BAMX_ENV=local
+sftp:
+  image: bamx/sftp
+  links:
+    - redis
+  ports:
+    - "13000:22"
+  volumes:
+    - /opt/bamx:/opt/bamx
+  environment:
+    - BAMX_ENV=local
+river:
+  image: bamx/base
+  links:
+    - elasticsearch
+  volumes:
+    - .:/opt/bamx
+  command: --skip-runit -- bash -c "conf/elasticsearch/createRiver.sh local"
