@@ -1,19 +1,16 @@
+from mock import patch
 from tests.helper import TestHelper
-from subprocess import check_output
 import yaml
 
-from wharfrat.command import read_file, create_parser, get_command
+from wharfrat.command import create_parser, get_command
 from wharfrat.wharf_rat import WharfRat
+
 
 class TestCommands(TestHelper):
 
-    def test_binary(self):
-
-        response = check_output('./wharf-rat --help'.split())
-        self.assertIn('wharf-rat', response)
-
-    def test_reads_file(self):
-        with open('wharf-rat.yml', 'w') as f:
+    @patch('wharfrat.wharf_rat.WharfRat._load')
+    def test_reads_file(self, mock_load):
+        with open('wharfrat.yml', 'w') as f:
             f.write('''
                 front:
                     type: instance
@@ -27,11 +24,11 @@ class TestCommands(TestHelper):
         class args:
             filename = None
 
-        response = read_file(args)
-        with open('wharf-rat.yml', 'r') as f:
-            self.assertEqual(yaml.load(f), response)
+        WharfRat.build(args)
+        mock_load.assert_called_with('wharfrat.yml')
 
-    def test_alternate_file(self):
+    @patch('wharfrat.wharf_rat.WharfRat._load')
+    def test_alternate_file(self, mock_load):
         with open('filename.yml', 'w') as f:
             f.write('''
                 front:
@@ -46,9 +43,8 @@ class TestCommands(TestHelper):
         class args:
             filename = 'filename.yml'
 
-        response = read_file(args)
-        with open('filename.yml', 'r') as f:
-            self.assertEqual(yaml.load(f), response)
+        WharfRat.build(args)
+        mock_load.assert_called_with('filename.yml')
 
     def test_filename_argument(self):
         args = ['-f', 'othername.yml', 'run', 'task']

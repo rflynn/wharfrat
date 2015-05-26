@@ -2,7 +2,6 @@ import os
 import yaml
 from argparse import ArgumentParser
 
-import wharfrat
 from wharfrat.wharf_rat import WharfRat
 from wharfrat.interface import issue
 
@@ -27,21 +26,11 @@ def get_command(args):
     return commands[args.command]
 
 
-def read_file(args):
-    filename = 'wharfrat.yml'
-    if args.filename:
-        filename = args.filename
-    wharfrat.DIRECTORY = os.path.dirname(os.path.abspath(filename))
-    with open(filename, 'r') as f:
-        return yaml.load(f)
-
-
 def main(args=None):
 
     parser = create_parser()
     _args = parser.parse_args(args)
-    data = read_file(_args)
-    translater = WharfRat(data)
+    translater = WharfRat.build(_args)
     command = get_command(_args)
     result = command(translater, _args.task)
     for item in result:

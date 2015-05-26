@@ -57,9 +57,13 @@ webapp:
   command: setup.py test
 ```
 
+
 This is an instance named "webapp".  It uses the image "busybox".  You can also
 give it a command `build: mydir` which will cause it to run `docker build mydir`
-and use the resultant image.  
+and use the resultant image.  If you specify a build command, you can also
+specify a dockerfile command, witht the same argument as the -f argument to
+docker build.  If paths in the file are relative, they will be resolved relative
+to the yml file, not the working directory (similar to Make)
 
 ## Running a task
 

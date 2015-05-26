@@ -1,9 +1,10 @@
-from mock import MagicMock, patch
+from mock import MagicMock
+import os
 from unittest import TestCase
 import yaml
 
 from wharfrat.container import Container, TaskContainer
-
+DIRECTORY = os.getcwd()
 
 class TestContainer(TestCase):
 
@@ -14,7 +15,7 @@ class TestContainer(TestCase):
             image: this/image
         ''')
 
-        con = Container('test-instance', data['test-instance'])
+        con = Container('test-instance', data['test-instance'], DIRECTORY)
         command = con.get_run_command('test-task')
         expected = 'this/image'
         self.assertTrue(command.endswith(expected))
@@ -29,7 +30,7 @@ class TestContainer(TestCase):
                 - VAR2=other
         ''')
 
-        con = Container('test-instance', data['test-instance'])
+        con = Container('test-instance', data['test-instance'], DIRECTORY)
         command = con.get_run_command('test-task')
         expected = '-e VAR=test -e VAR2=other'
         self.assertIn(expected, command)
@@ -42,7 +43,7 @@ class TestContainer(TestCase):
             command: fake command
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_run_command('test-task')
         expected = 'fake command'
         self.assertTrue(command.endswith(expected))
@@ -56,7 +57,7 @@ class TestContainer(TestCase):
                 - test-instance2:test-instance2
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_run_command('test-task')
         expected = ' --link test-task-test-instance2:test-instance2'
         self.assertIn(expected, command)
@@ -68,7 +69,7 @@ class TestContainer(TestCase):
             image: this/image
         ''')
 
-        con = Container('test-instance', data['test-instance'])
+        con = Container('test-instance', data['test-instance'], DIRECTORY)
         fake_task = MagicMock()
         fake_task.name = 'the_task'
         tc = TaskContainer(con, fake_task, remove=True)
@@ -83,7 +84,7 @@ class TestContainer(TestCase):
             image: this/image
         ''')
 
-        con = Container('test-instance', data['test-instance'])
+        con = Container('test-instance', data['test-instance'], DIRECTORY)
         fake_task = MagicMock()
         fake_task.name = 'the_task'
         tc = TaskContainer(con, fake_task)
@@ -98,7 +99,7 @@ class TestContainer(TestCase):
             image: this/image
         ''')
 
-        con = Container('test-instance', data['test-instance'])
+        con = Container('test-instance', data['test-instance'], DIRECTORY)
         fake_task = MagicMock()
         fake_task.name = 'the_task'
         tc = TaskContainer(con, fake_task)
@@ -114,12 +115,11 @@ class TestContainer(TestCase):
               - /root:/root
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_run_command('test-task')
         expected = ' -v /root:/root'
         self.assertIn(expected, command)
 
-    @patch('wharfrat.DIRECTORY', '/root')
     def test_relative_volume(self):
         data = yaml.load('''
         test-instance:
@@ -129,7 +129,7 @@ class TestContainer(TestCase):
               - a/directory:/data
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], '/root')
         command = container.get_run_command('test-task')
         expected = ' -v /root/a/directory:/data'
         self.assertIn(expected, command)
@@ -142,7 +142,7 @@ class TestContainer(TestCase):
             volumes-from:
               - another-instance
         ''')
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_run_command('test-task')
         expected = ' --volumes-from another-instance'
         self.assertIn(expected, command)
@@ -156,7 +156,7 @@ class TestContainer(TestCase):
               - "80:80"
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_run_command('test-task')
         expected = ' -p 80:80'
         self.assertIn(expected, command)
@@ -169,7 +169,7 @@ class TestContainer(TestCase):
             entrypoint: bash
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_run_command('test-task')
         expected = '--entrypoint bash'
         self.assertIn(expected, command)
@@ -181,12 +181,11 @@ class TestContainer(TestCase):
             build: /a/directory
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
         command = container.get_setup_command('test-task')
         expected = 'docker build -t test-task/test-instance /a/directory'
         self.assertEqual(expected, command)
 
-    @patch('wharfrat.DIRECTORY', '/root')
     def test_relative_build_command(self):
         data = yaml.load('''
         test-instance:
@@ -194,7 +193,35 @@ class TestContainer(TestCase):
             build: a/directory
         ''')
 
-        container = Container('test-instance', data['test-instance'])
+        container = Container('test-instance', data['test-instance'], '/root')
         command = container.get_setup_command('test-task')
         expected = 'docker build -t test-task/test-instance /root/a/directory'
+        self.assertEqual(expected, command)
+
+    def test_specify_dockerfile_build_command(self):
+        data = yaml.load('''
+        test-instance:
+            type: instance
+            dockerfile: /a/directory/Dockerfile
+            build: /a/directory
+        ''')
+
+        container = Container('test-instance', data['test-instance'], DIRECTORY)
+        command = container.get_setup_command('test-task')
+        expected = 'docker build -t test-task/test-instance -f ' \
+                   '/a/directory/Dockerfile /a/directory'
+        self.assertEqual(expected, command)
+
+    def test_relative_dockerfile_build_command(self):
+        data = yaml.load('''
+        test-instance:
+            type: instance
+            dockerfile: a/directory/Dockerfile
+            build: /a/directory
+        ''')
+
+        container = Container('test-instance', data['test-instance'], '/root')
+        command = container.get_setup_command('test-task')
+        expected = 'docker build -t test-task/test-instance -f ' \
+                   '/root/a/directory/Dockerfile /a/directory'
         self.assertEqual(expected, command)
