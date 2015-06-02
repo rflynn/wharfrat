@@ -26,7 +26,8 @@ long_description = read('README.md')
 
 
 install_requires = [
-    'PyYAML >= 3.11'
+    'PyYAML >= 3.11',
+    'Fabric >= 1.10'
 ]
 
 
