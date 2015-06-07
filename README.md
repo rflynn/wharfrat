@@ -4,7 +4,7 @@ A simple tool to translate yml config files into docker commands.
 
 ## Install
 
-pip install wharfrat
+`pip install wharfrat`
 
 ## Basics
 
@@ -74,15 +74,20 @@ current working directory.  <MY_TASK> is the name of the task to run.
 
 # Develop
 
+```
 virtualenv -p python2.7 venv
 source venv/bin/activate
 python setup.py develop
 python setup.py test
+```
 
 ## Run docker on OSX
-    $ brew install docker
-    $ brew install boot2docker
-    $ boot2docker init
-    $ boot2docker up
+
+```
+brew install docker
+brew install boot2docker
+boot2docker init
+boot2docker up
+```
 
 (copy the three `export` commands that `boot2docker` outputs into your `~/.profile` or similar file)
